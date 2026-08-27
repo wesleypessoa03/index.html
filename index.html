@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Controle de contas</title>
+<style>
+@import url('data:text/css,'); /* intentionally empty: this file has no network dependency */
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1C2733;background:#EEF1F1}button,input,select,textarea{font:inherit}button{cursor:pointer}
+.app{min-height:100vh}.header{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;background:#fff;border-bottom:1px solid #DBE1E3}.brand{display:flex;align-items:center;gap:10px}.mark{width:30px;height:30px;border-radius:8px;background:#0F6E6B;color:#fff;display:grid;place-items:center;font-size:18px}.brandText{font-family:Georgia,serif;font-weight:600;font-size:18px}.user{display:flex;align-items:center;gap:10px}.avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:11px}.switch{border:1px solid #DBE1E3;background:transparent;border-radius:8px;padding:6px 10px;color:#5B6A78;font-size:12px}
+.tabs{display:flex;gap:8px;padding:14px 28px 0;background:#EEF1F1;flex-wrap:wrap}.tab{font-size:13px;font-weight:500;padding:9px 16px;border-radius:10px 10px 0 0;border:1px solid #DBE1E3;border-bottom:0;background:#E3E7E7;color:#5B6A78}.tab.active{background:#fff;color:#1C2733;font-weight:600}
+.main{padding:24px 28px 48px;background:#fff;min-height:calc(100vh - 90px)}.head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:22px;gap:16px;flex-wrap:wrap}.eyebrow{font-size:11px;letter-spacing:.08em;color:#085041;font-weight:600;text-transform:uppercase}.title{font-family:Georgia,serif;font-size:26px;margin:4px 0 0}.total{text-align:right}.total small{display:block;color:#5B6A78;font-size:11px}.money{font-family:"Courier New",monospace;font-size:22px;color:#B9791F}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}.card,.newcard{min-height:118px;border:1px solid #DBE1E3;border-radius:14px;padding:16px;background:#EEF1F1;text-align:left}.card{display:flex;flex-direction:column;gap:14px}.cardtop{display:flex;justify-content:space-between}.bankicon{width:30px;height:30px;border-radius:8px;background:#fff;border:1px solid #DBE1E3;display:grid;place-items:center;color:#085041;font-size:15px}.banktag{font-size:10px;color:#5B6A78;text-transform:uppercase}.accountname{font-weight:600;font-size:15px}.pending{font-family:"Courier New",monospace;font-size:18px;color:#B9791F}.label{font-size:11px;color:#5B6A78}.newcard{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;background:transparent;border:1.5px dashed #DBE1E3;color:#5B6A78}.clearmonth{border:1px solid #DBE1E3;background:#fff;color:#B23A3A;border-radius:8px;padding:8px 12px;font-size:12px;white-space:nowrap}.formcard{display:flex;flex-direction:column;gap:8px;padding:14px;background:#EEF1F1;border:1px solid #0F6E6B;border-radius:14px;min-width:0;max-width:100%}.input{border:1px solid #DBE1E3;border-radius:8px;padding:8px 10px;background:#fff;outline:none;width:100%;min-width:0;max-width:100%}.actions{display:flex;justify-content:flex-end;gap:6px}.icon{width:30px;height:30px;border-radius:8px;border:1px solid #DBE1E3;background:transparent;color:#5B6A78}.ok{background:#0F6E6B;color:#fff;border:0}.empty{color:#5B6A78;font-size:13px;margin-top:16px}
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}.loginin{width:100%;max-width:640px}.login h1{font-family:Georgia,serif;font-size:34px;margin:0 0 8px}.sub{color:#5B6A78;font-size:14px;margin:0 0 32px}.users{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px}.ucard,.newuser{position:relative;padding:20px 12px;border:1px solid #DBE1E3;border-radius:14px;background:#fff;text-align:center;cursor:pointer}.udel{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:7px;border:1px solid #DBE1E3;background:#fff;color:#B23A3A;font-size:12px;line-height:1;display:grid;place-items:center}.ucard .bigavatar,.newuser .plus{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;margin:auto auto 10px;font-weight:600}.newuser{border:1.5px dashed #DBE1E3;background:transparent;color:#5B6A78}.newuser .plus{border:1.5px dashed #DBE1E3}.newform{display:flex;gap:8px;padding:14px;background:#fff;border:1px solid #0F6E6B;border-radius:14px}.newform input{flex:1}.error{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#4A1B0C;color:#FAECE7;padding:8px 16px;border-radius:8px;font-size:13px;z-index:100}
+.overlay{position:fixed;inset:0;background:rgba(28,39,51,.55);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}.panel{width:100%;max-width:900px;max-height:88vh;overflow:auto;background:#fff;border-radius:18px;padding:24px}.phead{display:flex;align-items:flex-start;gap:12px;margin-bottom:18px}.ptexts{flex:1}.editable{font-family:Georgia,serif;font-size:22px;font-weight:600;margin:0;cursor:text}.subedit{font-size:12px;color:#5B6A78;margin:4px 0;cursor:text}.danger{color:#B23A3A;border-color:#DBE1E3}.summary{display:flex;align-items:center;gap:20px;background:#EEF1F1;border-radius:12px;padding:14px 18px;margin-bottom:18px;flex-wrap:wrap}.sumlabel{font-size:11px;color:#5B6A78}.sumvalue{font-family:"Courier New",monospace;font-size:19px}.divider{width:1px;align-self:stretch;background:#DBE1E3}.calhead{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap}.caltitle{font-size:15px;font-weight:600}.hint{font-size:11px;color:#5B6A78;margin-top:3px}.add{border:0;background:#E1F5EE;color:#085041;border-radius:10px;padding:10px 14px}.days{display:grid;grid-template-columns:repeat(7,minmax(64px,1fr));gap:8px;margin-bottom:18px}.day{min-height:68px;position:relative;border:1px solid #DBE1E3;border-radius:10px;background:#EEF1F1;padding:9px;display:flex;flex-direction:column;justify-content:space-between;text-align:left}.day.noactivity{background:#E1E7E7}.day.dayoff{background:#CDD4D4;border-color:#B7C0C0}.offtag{font-size:8px;letter-spacing:.03em;text-transform:uppercase;color:#5B6A78}.day.sel{border-color:#0F6E6B;box-shadow:0 0 0 1px #0F6E6B;background:#F4FBF9}.daynum{font-family:"Courier New",monospace;font-weight:500}.count{position:absolute;right:7px;top:7px;min-width:19px;height:19px;border-radius:10px;background:#fff;border:1px solid #DBE1E3;font-size:10px;display:grid;place-items:center;color:#5B6A78}.dots{display:flex;gap:4px}.dot{width:7px;height:7px;border-radius:50%}.pay{background:#B23A3A}.receive{background:#0F6E6B}.selected{background:#EEF1F1;border:1px solid #DBE1E3;border-radius:12px;padding:14px;margin-bottom:14px}.selhead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}.seltitle{font-family:Georgia,serif;font-size:19px;font-weight:600}.meta{font-size:11px;color:#5B6A78}.addday{border:1px solid #0F6E6B;background:#fff;color:#085041;border-radius:8px;padding:7px 10px;font-size:12px}.task{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:10px;background:#EEF1F1;margin-bottom:6px;cursor:pointer}.check{width:20px;height:20px;border-radius:6px;border:1.5px solid #DBE1E3;background:#fff}.check.done{background:#0F6E6B;border-color:#0F6E6B;color:#fff}.taskbody{flex:1;min-width:0}.desc{font-size:13px;font-weight:500}.desc.done{text-decoration:line-through;color:#5B6A78}.taskmeta{font-size:11px;color:#5B6A78}.taskval{font-family:"Courier New",monospace;font-size:13px;color:#B9791F}.trash{border:0;background:transparent;color:#5B6A78}.taskform{display:flex;flex-direction:column;gap:8px;background:#EEF1F1;border:1px solid #DBE1E3;border-radius:12px;padding:14px;min-width:0;max-width:100%}.row{display:flex;gap:8px;min-width:0}.row>*{flex:1;min-width:0}.row .value{flex:0 0 130px;min-width:0}.confirm{display:flex;align-items:center;gap:6px}.yes{font-size:12px;color:#fff;background:#B23A3A;border:0;border-radius:6px;padding:5px 9px}.no{font-size:12px;color:#5B6A78;background:transparent;border:1px solid #DBE1E3;border-radius:6px;padding:5px 9px}
+.respbox{border:1px solid #DBE1E3;border-radius:8px;padding:8px;background:#fff;max-height:130px;overflow:auto;display:flex;flex-direction:column;gap:6px}.respitem{display:flex;align-items:center;gap:6px;font-size:13px}.obs textarea{width:100%;min-height:70px;border:1px solid #DBE1E3;border-radius:8px;padding:8px;font:inherit;resize:vertical}
+.kanbanWrap{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.kcol{background:#EEF1F1;border:1px solid #DBE1E3;border-radius:14px;padding:12px;min-height:220px;display:flex;flex-direction:column;gap:10px}.kcolhead{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600;color:#5B6A78;text-transform:uppercase;letter-spacing:.04em;padding:0 2px}.kcount{font-size:11px;color:#5B6A78;background:#fff;border:1px solid #DBE1E3;border-radius:10px;padding:1px 8px;text-transform:none;letter-spacing:0;font-weight:500}
+.kcard{background:#fff;border:1px solid #DBE1E3;border-radius:10px;padding:10px;cursor:pointer;display:flex;flex-direction:column;gap:6px}.kcard.dragging{opacity:.4}.kdesc{font-size:13px;font-weight:600}.kval{font-family:"Courier New",monospace;font-size:12px}.kchips{display:flex;flex-wrap:wrap;gap:4px}.kchip{font-size:10px;background:#E1F5EE;color:#085041;border-radius:8px;padding:2px 7px}
+.kaddbtn{border:1px dashed #DBE1E3;background:transparent;color:#5B6A78;border-radius:8px;padding:8px;font-size:12px;margin-top:2px;width:100%}
+@media(max-width:700px){.days{grid-template-columns:repeat(4,minmax(58px,1fr))}.header{padding:14px 16px}.tabs,.main{padding-left:16px;padding-right:16px}.panel{padding:16px}}@media(max-width:480px){.days{grid-template-columns:repeat(3,minmax(58px,1fr))}.row{flex-direction:column}.row .value{flex:auto}}
+@media(max-width:800px){.kanbanWrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function(){
+const KEY="gestor-contas:data";
+const COLORS=[["#E1F5EE","#085041"],["#E6F1FB","#0C447C"],["#FAECE7","#712B13"],["#FBEAF0","#72243E"],["#FAEEDA","#633806"]];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const today=()=>new Date().toISOString().slice(0,10);
+const brl=v=>(Number(v)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const initials=n=>String(n||"").trim().split(/\s+/).slice(0,2).map(x=>x[0]?.toUpperCase()||"").join("");
+const KSTATUS=[["afazer","A fazer"],["fazendo","Fazendo"],["feito","Feito"]];
+const fresh=()=>({users:[],companies:[{id:uid(),name:"Fazenda"},{id:uid(),name:"Trielo"},{id:uid(),name:"APR"}],accounts:[],tasks:[],kanban:{receber:[],pagar:[]}});
+let data; try{data=JSON.parse(localStorage.getItem(KEY)||"null")||fresh()}catch(e){data=fresh()}
+if(!data.kanban) data.kanban={receber:[],pagar:[]};
+if(!Array.isArray(data.kanban.receber)) data.kanban.receber=[];
+if(!Array.isArray(data.kanban.pagar)) data.kanban.pagar=[];
+(data.tasks||[]).forEach(t=>{ if(t.responsavel && !t.responsaveis) t.responsaveis=[t.responsavel]; if(!t.responsaveis) t.responsaveis=[]; if(t.observacao===undefined) t.observacao=""; });
+let current=null, company=data.companies[0]?.id||null, selected=null;
+let tab=null, selectedDay=null;
+let kanbanSelected=null, kanbanFormOpen=null, draggedItem=null;
+
+function save(){localStorage.setItem(KEY,JSON.stringify(data))}
+function render(){
+ const scrollY=window.scrollY;
+ const openPanel=document.querySelector(".panel");
+ const panelScroll=openPanel?openPanel.scrollTop:0;
+ doRender();
+ window.scrollTo(0,scrollY);
+ const newPanel=document.querySelector(".panel");
+ if(newPanel)newPanel.scrollTop=panelScroll;
+}
+function headerHtml(){
+ return `<header class="header"><div class="brand"><div class="mark">☷</div><span class="brandText">Controle de contas</span></div>
+<div class="user"><div class="avatar" style="background:${current.color.bg};color:${current.color.fg}">${esc(initials(current.name))}</div><span>${esc(current.name)}</span><button class="switch" id="switch">↪ Trocar usuário</button></div></header>`;
+}
+function tabsHtml(){
+ return data.companies.map(c=>`<button class="tab ${!tab&&c.id===company?"active":""}" data-company="${c.id}">${esc(c.name)}</button>`).join("")
+ +`<button class="tab ${tab==='receber'?"active":""}" data-kanbantab="receber">Pendências A Receber</button>`
+ +`<button class="tab ${tab==='pagar'?"active":""}" data-kanbantab="pagar">Pendências A Pagar</button>`;
+}
+function doRender(){
+ if(!current){renderLogin();return}
+ if(tab){renderKanbanBoard();return}
+ const co=data.companies.find(x=>x.id===company)||data.companies[0]; company=co?.id;
+ const accounts=data.accounts.filter(a=>a.companyId===company);
+ const total=accounts.reduce((s,a)=>s+data.tasks.filter(t=>t.accountId===a.id&&t.status==="pendente").reduce((q,t)=>q+Number(t.value||0),0),0);
+ $("root").innerHTML=`<div class="app">
+${headerHtml()}
+<nav class="tabs">${tabsHtml()}</nav>
+<main class="main"><div class="head"><div><div class="eyebrow">Módulo</div><h2 class="title">${esc(co?.name||"")}</h2></div><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><button class="clearmonth" id="clearMonth">🗑 Apagar pendências / Virada de mês</button><div class="total"><small>Total pendente</small><div class="money">${brl(total)}</div></div></div></div>
+<div class="grid">${accounts.map(a=>card(a)).join("")}<div id="newAccount">${newAccount()}</div></div>
+${accounts.length?"":`<p class="empty">Nenhuma conta bancária cadastrada em ${esc(co?.name||"")} ainda.</p>`}</main>
+</div>${selected?detail(selected):""}`;
+ bind();
+}
+function renderLogin(){
+ $("root").innerHTML=`<div class="login"><div class="loginin"><div class="eyebrow">CONTROLE DE PENDÊNCIAS · CONTAS BANCÁRIAS</div><h1>Quem está acessando?</h1><p class="sub">Selecione seu quadro para entrar. Sem senha — apenas identificação.</p><div class="users">${data.users.map(u=>`<div class="ucard" data-user="${u.id}"><button class="udel" data-deluser="${u.id}" title="Excluir usuário">×</button><div class="bigavatar" style="background:${u.color.bg};color:${u.color.fg}">${esc(initials(u.name))}</div><div>${esc(u.name)}</div></div>`).join("")}<button class="newuser" id="newUser"><div class="plus">＋</div><div>Novo usuário</div></button></div></div></div>`;
+ $("newUser").onclick=()=>{ $("newUser").outerHTML=`<div class="newform" id="newForm"><input class="input" id="userName" placeholder="Seu nome" autofocus><button class="icon" id="cancel">×</button><button class="icon ok" id="create">✓</button></div>`;$("cancel").onclick=render;$("create").onclick=createUser;$("userName").onkeydown=e=>{if(e.key==="Enter")createUser()};};
+ document.querySelectorAll("[data-user]").forEach(b=>b.onclick=()=>{current=data.users.find(u=>u.id===b.dataset.user);render()});
+ document.querySelectorAll("[data-deluser]").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();let u=data.users.find(x=>x.id===b.dataset.deluser);if(u&&confirm("Excluir o usuário \""+u.name+"\"? Isso não apaga contas nem pendências já lançadas.")){data.users=data.users.filter(x=>x.id!==u.id);save();render()}}));
+}
+function createUser(){let n=$("userName").value.trim();if(!n)return;let c=COLORS[data.users.length%COLORS.length];let u={id:uid(),name:n,color:{bg:c[0],fg:c[1]}};data.users.push(u);save();current=u;render()}
+function card(a){let ts=data.tasks.filter(t=>t.accountId===a.id&&t.status==="pendente"), total=ts.reduce((s,t)=>s+Number(t.value||0),0);return `<button class="card" data-account="${a.id}"><div class="cardtop"><div class="bankicon">🏦</div>${a.bank?`<span class="banktag">${esc(a.bank)}</span>`:""}</div><div class="accountname">${esc(a.name)}</div><div><div class="pending">${brl(total)}</div><div class="label">${ts.length?ts.length+" pendência"+(ts.length>1?"s":""):"sem pendências"}</div></div></button>`}
+function newAccount(){return `<button class="newcard" id="addAccount">＋<span>Nova conta bancária</span></button>`}
+function detail(id){
+ let a=data.accounts.find(x=>x.id===id), ts=data.tasks.filter(t=>t.accountId===id);
+ let day=selectedDay, offDays=getOffDays();
+ let scope=day!==null?ts.filter(t=>Number(String(t.day||"").slice(-2))===day):ts;
+ let pay=scope.filter(t=>t.status==="pendente"&&t.type==="A pagar").reduce((s,t)=>s+Number(t.value||0),0), rec=scope.filter(t=>t.status==="pendente"&&t.type==="A receber").reduce((s,t)=>s+Number(t.value||0),0), pend=scope.filter(t=>t.status==="pendente").length, done=scope.filter(t=>t.status==="concluida").length;
+ return `<div class="overlay" id="overlay"><div class="panel" onclick="event.stopPropagation()"><div class="phead"><button class="icon" id="close">←</button><div class="ptexts"><h3 class="editable" id="editName">${esc(a.name)} ✎</h3><p class="subedit" id="editBank">${esc(a.bank||"adicionar banco")}</p></div><button class="icon danger" id="deleteAccount">🗑</button></div>
+<div class="hint" style="margin-bottom:8px">${day!==null?"Resumo do dia "+day+" (clique no dia de novo para ver o resumo geral)":"Resumo geral da conta"}</div>
+<div class="summary"><div><div class="sumlabel">A pagar</div><div class="sumvalue" style="color:#B23A3A">${brl(pay)}</div></div><div class="divider"></div><div><div class="sumlabel">A receber</div><div class="sumvalue" style="color:#0F6E6B">${brl(rec)}</div></div><div class="divider"></div><div><div class="sumlabel">Pendências</div><div class="sumvalue">${pend}</div></div><div class="divider"></div><div><div class="sumlabel">Concluídas</div><div class="sumvalue">${done}</div></div></div>
+<div class="calhead"><div><div class="caltitle">Pendências por dia</div><div class="hint">Clique em um dia para ver as pendências e registrar novas.</div></div><button class="add" id="newTask">＋ Nova pendência</button></div>
+<div class="days">${Array.from({length:31},(_,i)=>i+1).map(n=>dayBox(n,ts,day,offDays)).join("")}</div>
+${day!==null?dayPanel(day,ts,offDays):""}<div id="taskForm"></div></div></div>`
+}
+function getOffDays(){let co=data.companies.find(x=>x.id===company);if(!co)return[];if(!co.offDays)co.offDays=[];return co.offDays}
+function dayBox(n,ts,d,offDays){let x=ts.filter(t=>Number(String(t.day||"").slice(-2))===n&&t.status==="pendente"), any=ts.some(t=>Number(String(t.day||"").slice(-2))===n), off=offDays.includes(n), p=x.some(t=>t.type==="A pagar"),r=x.some(t=>t.type==="A receber");return `<button class="day ${d===n?"sel":""} ${off?"dayoff":(any?"":"noactivity")}" data-day="${n}"><span class="daynum">${n}</span>${x.length?`<span class="count">${x.length}</span>`:""}<div class="dots">${p?'<span class="dot pay"></span>':""}${r?'<span class="dot receive"></span>':""}</div>${off?'<span class="offtag">Folga</span>':""}</button>`}
+function dayPanel(d,ts,offDays){let x=ts.filter(t=>Number(String(t.day||"").slice(-2))===d), off=offDays.includes(d);return `<div class="selected"><div class="selhead"><div><div class="seltitle">Dia ${d}</div><div class="meta">${x.length} registro(s)</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="addday" id="toggleOff" data-day="${d}">${off?"✓ Fim de semana/feriado":"Marcar fim de semana/feriado"}</button><button class="addday" id="addDay">＋ Registrar pendência neste dia</button></div></div>${x.length?x.sort((a,b)=>(a.status===b.status?0:a.status==="pendente"?-1:1)).map(task).join(""):'<div class="meta" style="padding:18px;text-align:center">Nenhuma pendência registrada neste dia.</div>'}</div>`}
+function task(t){let done=t.status==="concluida";let resp=(t.responsaveis||[]).map(id=>data.users.find(u=>u.id===id)).filter(Boolean);return `<div class="task" data-taskrow="${t.id}"><button class="check ${done?"done":""}" data-toggle="${t.id}">${done?"✓":""}</button><div class="taskbody"><div class="desc ${done?"done":""}">${esc(t.description)}</div><div class="taskmeta">por ${esc(t.createdBy)} · <span style="color:${t.type==="A receber"?"#0F6E6B":"#B23A3A"}">${esc(t.type||"A pagar")}</span>${resp.length?" · responsáveis: "+resp.map(u=>esc(u.name)).join(", "):""}${t.observacao?" · 📝":""}</div></div><div class="taskval" style="${done?"color:#5B6A78":""}">${brl(t.value)}</div><button class="trash" data-edit="${t.id}" title="Editar">✎</button><button class="trash" data-delete="${t.id}" title="Excluir">🗑</button></div>`}
+function respChecksHtml(selectedIds){selectedIds=selectedIds||[];return data.users.length?data.users.map(u=>`<label class="respitem"><input type="checkbox" value="${u.id}" ${selectedIds.includes(u.id)?"checked":""}> ${esc(u.name)}</label>`).join(""):'<span class="hint">Nenhum usuário cadastrado</span>'}
+function form(day,taskId){
+ let t=taskId?data.tasks.find(x=>x.id===taskId):null;
+ let d=t?t.day:(day?new Date().toISOString().slice(0,7)+"-"+String(day).padStart(2,"0"):today());
+ $("taskForm").innerHTML=`<div class="taskform"><b style="font-size:12px;color:#085041">${t?"Editar pendência":(day?"Nova pendência — dia "+day:"Nova pendência")}</b><div class="row"><input class="input" type="date" id="td" value="${d}"><select class="input" id="tt"><option ${(t&&t.type==="A pagar")||!t?"selected":""}>A pagar</option><option ${t&&t.type==="A receber"?"selected":""}>A receber</option></select><input class="input value" type="number" step="0.01" placeholder="Valor (R$)" id="tv" value="${t?t.value:""}"></div><input class="input" id="tdesc" placeholder="Descrição da pendência" value="${t?esc(t.description):""}"><div class="hint">Responsáveis</div><div class="respbox" id="trespbox">${respChecksHtml(t?t.responsaveis:[])}</div><div class="hint">Observação</div><div class="obs"><textarea id="tobs" placeholder="Adicionar observação (opcional)">${t?esc(t.observacao||""):""}</textarea></div><div class="actions">${t?'<button class="icon danger" id="fdel" title="Excluir">🗑</button>':""}<button class="icon" id="fc">×</button><button class="icon ok" id="fs">✓</button></div></div>`;$("tdesc").focus();$("fc").onclick=()=>{$("taskForm").innerHTML=""};$("fs").onclick=()=>saveTask(taskId);$("tdesc").onkeydown=e=>{if(e.key==="Enter")saveTask(taskId)};if(t){$("fdel").onclick=()=>{if(confirm("Excluir esta pendência?")){data.tasks=data.tasks.filter(x=>x.id!==t.id);save();render()}}}
+}
+function saveTask(taskId){
+ let d=$("td").value,desc=$("tdesc").value.trim();if(!d||!desc)return;
+ let value=Number($("tv").value)||0,type=$("tt").value;
+ let responsaveis=Array.from(document.querySelectorAll("#trespbox input:checked")).map(c=>c.value);
+ let observacao=$("tobs").value;
+ if(taskId){let t=data.tasks.find(x=>x.id===taskId);t.day=d;t.description=desc;t.value=value;t.type=type;t.responsaveis=responsaveis;t.observacao=observacao;delete t.responsavel;}
+ else{data.tasks.push({id:uid(),accountId:selected,day:d,description:desc,value,type,status:"pendente",createdBy:current.name,responsaveis,observacao})}
+ save();render();
+}
+
+/* ---------- Kanban: Pendências A Receber / A Pagar ---------- */
+function renderKanbanBoard(){
+ const kind=tab, label=kind==='receber'?"Pendências A Receber":"Pendências A Pagar";
+ const items=data.kanban[kind];
+ $("root").innerHTML=`<div class="app">
+${headerHtml()}
+<nav class="tabs">${tabsHtml()}</nav>
+<main class="main"><div class="head"><div><div class="eyebrow">Módulo</div><h2 class="title">${label}</h2></div></div>
+<div class="kanbanWrap">${KSTATUS.map(([st,lbl])=>kanbanColumn(kind,st,lbl,items)).join("")}</div>
+</main></div>${kanbanSelected?kanbanDetailPanel(kind):""}`;
+ bindKanban(kind);
+}
+function kanbanColumn(kind,status,label,items){
+ const list=items.filter(i=>i.status===status);
+ const formOpen=kanbanFormOpen===status;
+ return `<div class="kcol" data-dropcol="${status}"><div class="kcolhead"><span>${label}</span><span class="kcount">${list.length}</span></div>${list.map(i=>kanbanCard(kind,i,status)).join("")}${(!list.length&&!formOpen)?'<div class="hint" style="text-align:center;padding:10px 0">Nenhum item</div>':""}<div id="kaddform-${status}">${formOpen?kanbanAddFormHtml(kind,status):""}</div>${formOpen?"":`<button class="kaddbtn" data-kaddopen="${status}">＋ Adicionar pendência</button>`}</div>`
+}
+function kanbanCard(kind,item,status){
+ let resp=(item.responsaveis||[]).map(id=>data.users.find(u=>u.id===id)).filter(Boolean);
+ return `<div class="kcard" draggable="true" data-kcard="${item.id}">
+<div class="kdesc">${esc(item.description)}${item.observacao?" 📝":""}</div>
+<div class="kval" style="color:${kind==='receber'?'#0F6E6B':'#B23A3A'}">${brl(item.value)}</div>
+${resp.length?`<div class="kchips">${resp.map(u=>`<span class="kchip">${esc(u.name)}</span>`).join("")}</div>`:""}
+</div>`
+}
+function kanbanAddFormHtml(kind,status){
+ return `<div class="taskform" style="margin:8px 0"><b style="font-size:12px;color:#085041">Nova pendência ${kind==='receber'?'a receber':'a pagar'}</b>
+<input class="input" id="kndesc" placeholder="Descrição da pendência">
+<div class="row"><input class="input value" type="number" step="0.01" placeholder="Valor (R$)" id="knval"></div>
+<div class="hint">Responsáveis</div>
+<div class="respbox" id="knrespbox">${respChecksHtml([])}</div>
+<div class="hint">Observação</div>
+<div class="obs"><textarea id="knobs" placeholder="Observação (opcional)"></textarea></div>
+<div class="actions"><button class="icon" data-kaddclose="${status}">×</button><button class="icon ok" data-kaddsave="${status}">✓</button></div>
+</div>`
+}
+function kanbanDetailPanel(kind){
+ const item=data.kanban[kind].find(i=>i.id===kanbanSelected);
+ if(!item)return "";
+ return `<div class="overlay" id="koverlay"><div class="panel" onclick="event.stopPropagation()" style="max-width:560px">
+<div class="phead"><button class="icon" id="kclose">←</button><div class="ptexts"><h3 class="editable" style="cursor:default;font-size:19px">${kind==='receber'?'Pendência a receber':'Pendência a pagar'}</h3></div><button class="icon danger" id="kdelete" title="Excluir">🗑</button></div>
+<div class="hint" style="margin-bottom:6px">Descrição</div>
+<input class="input" id="kdesc" value="${esc(item.description)}" style="margin-bottom:12px">
+<div class="row" style="margin-bottom:12px">
+<div><div class="hint" style="margin-bottom:6px">Valor</div><input class="input value" type="number" step="0.01" id="kval" value="${item.value}"></div>
+<div><div class="hint" style="margin-bottom:6px">Status</div><select class="input" id="kstatus">${KSTATUS.map(([st,lbl])=>`<option value="${st}" ${item.status===st?"selected":""}>${lbl}</option>`).join("")}</select></div>
+</div>
+<div class="hint" style="margin-bottom:6px">Responsáveis</div>
+<div class="respbox" id="krespbox">${respChecksHtml(item.responsaveis)}</div>
+<div class="hint" style="margin:12px 0 6px">Observação</div>
+<div class="obs"><textarea id="kobs" placeholder="Adicionar observação...">${esc(item.observacao||"")}</textarea></div>
+<div class="actions" style="margin-top:14px"><button class="icon" id="kcancel">Fechar</button><button class="icon ok" id="ksave">Salvar</button></div>
+</div></div>`
+}
+function saveNewKanban(kind,status){
+ const desc=$("kndesc").value.trim();if(!desc)return;
+ const value=Number($("knval").value)||0;
+ const responsaveis=Array.from(document.querySelectorAll("#knrespbox input:checked")).map(c=>c.value);
+ const observacao=$("knobs").value;
+ data.kanban[kind].push({id:uid(),description:desc,value,status:status||"afazer",responsaveis,observacao,createdBy:current.name,createdAt:today()});
+ save();kanbanFormOpen=null;render();
+}
+function bindKanban(kind){
+ $("switch")?.addEventListener("click",()=>{current=null;tab=null;kanbanSelected=null;kanbanFormOpen=null;render()});
+ document.querySelectorAll("[data-company]").forEach(b=>b.onclick=()=>{tab=null;company=b.dataset.company;selected=null;selectedDay=null;render()});
+ document.querySelectorAll("[data-kanbantab]").forEach(b=>b.onclick=()=>{tab=b.dataset.kanbantab;kanbanSelected=null;kanbanFormOpen=null;render()});
+ document.querySelectorAll("[data-kaddopen]").forEach(b=>b.onclick=()=>{kanbanFormOpen=b.dataset.kaddopen;render()});
+ document.querySelectorAll("[data-kaddclose]").forEach(b=>b.onclick=()=>{kanbanFormOpen=null;render()});
+ document.querySelectorAll("[data-kaddsave]").forEach(b=>b.onclick=()=>saveNewKanban(kind,b.dataset.kaddsave));
+ if(kanbanFormOpen){
+  $("kndesc")?.focus();
+  if($("kndesc"))$("kndesc").onkeydown=e=>{if(e.key==="Enter")saveNewKanban(kind,kanbanFormOpen)};
+ }
+ document.querySelectorAll("[data-kcard]").forEach(el=>{
+  el.addEventListener("click",()=>{kanbanSelected=el.dataset.kcard;render()});
+  el.addEventListener("dragstart",e=>{draggedItem=el.dataset.kcard;el.classList.add("dragging");e.dataTransfer.effectAllowed="move"});
+  el.addEventListener("dragend",()=>{el.classList.remove("dragging");draggedItem=null});
+ });
+ document.querySelectorAll("[data-dropcol]").forEach(col=>{
+  col.addEventListener("dragover",e=>{e.preventDefault()});
+  col.addEventListener("drop",e=>{
+   e.preventDefault();if(!draggedItem)return;
+   const item=data.kanban[kind].find(i=>i.id===draggedItem);
+   if(item){item.status=col.dataset.dropcol;save()}
+   draggedItem=null;render();
+  });
+ });
+ $("koverlay")?.addEventListener("click",e=>{if(e.target.id==="koverlay"){kanbanSelected=null;render()}});
+ $("kclose")?.addEventListener("click",()=>{kanbanSelected=null;render()});
+ $("kcancel")?.addEventListener("click",()=>{kanbanSelected=null;render()});
+ $("kdelete")?.addEventListener("click",()=>{if(confirm("Excluir esta pendência?")){data.kanban[kind]=data.kanban[kind].filter(i=>i.id!==kanbanSelected);save();kanbanSelected=null;render()}});
+ $("ksave")?.addEventListener("click",()=>{
+  const item=data.kanban[kind].find(i=>i.id===kanbanSelected);if(!item)return;
+  item.description=$("kdesc").value.trim()||item.description;
+  item.value=Number($("kval").value)||0;
+  item.status=$("kstatus").value;
+  item.responsaveis=Array.from(document.querySelectorAll("#krespbox input:checked")).map(c=>c.value);
+  item.observacao=$("kobs").value;
+  save();kanbanSelected=null;render();
+ });
+}
+
+function bind(){
+ $("switch")?.addEventListener("click",()=>{current=null;tab=null;selected=null;render()});
+ document.querySelectorAll("[data-company]").forEach(b=>b.onclick=()=>{tab=null;company=b.dataset.company;selected=null;selectedDay=null;render()});
+ document.querySelectorAll("[data-kanbantab]").forEach(b=>b.onclick=()=>{tab=b.dataset.kanbantab;kanbanSelected=null;kanbanFormOpen=false;render()});
+ document.querySelectorAll("[data-account]").forEach(b=>b.onclick=()=>{selected=b.dataset.account;selectedDay=null;render()});
+ $("addAccount")?.addEventListener("click",()=>{ $("newAccount").innerHTML=`<div class="formcard"><input class="input" id="an" placeholder="Nome da conta" autofocus><input class="input" id="ab" placeholder="Banco (opcional)"><div class="actions"><button class="icon" id="ac">×</button><button class="icon ok" id="as">✓</button></div></div>`;$("ac").onclick=render;$("as").onclick=addAccount;$("ab").onkeydown=e=>{if(e.key==="Enter")addAccount()};});
+ $("overlay")?.addEventListener("click",e=>{if(e.target.id==="overlay"){selected=null;selectedDay=null;render()}});
+ $("close")?.addEventListener("click",()=>{selected=null;selectedDay=null;render()});
+ $("newTask")?.addEventListener("click",()=>form(null));
+ $("addDay")?.addEventListener("click",()=>form(selectedDay));
+ $("toggleOff")?.addEventListener("click",()=>{let n=Number($("toggleOff").dataset.day),off=getOffDays(),i=off.indexOf(n);if(i>=0)off.splice(i,1);else off.push(n);save();render()});
+ document.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>{let n=Number(b.dataset.day);selectedDay=selectedDay===n?null:n;render()});
+ document.querySelectorAll("[data-toggle]").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();let t=data.tasks.find(t=>t.id===b.dataset.toggle);t.status=t.status==="pendente"?"concluida":"pendente";save();render()}));
+ document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();form(selectedDay,b.dataset.edit)}));
+ document.querySelectorAll("[data-delete]").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();data.tasks=data.tasks.filter(t=>t.id!==b.dataset.delete);save();render()}));
+ document.querySelectorAll("[data-taskrow]").forEach(el=>el.addEventListener("click",e=>{if(e.target.closest("button"))return;form(selectedDay,el.dataset.taskrow)}));
+ $("deleteAccount")?.addEventListener("click",()=>{if(confirm("Excluir esta conta e todas as pendências dela?")){data.accounts=data.accounts.filter(a=>a.id!==selected);data.tasks=data.tasks.filter(t=>t.accountId!==selected);save();selected=null;render()}});
+ $("clearMonth")?.addEventListener("click",()=>{const accs=data.accounts.filter(a=>a.companyId===company);if(!accs.length)return;const co=data.companies.find(x=>x.id===company);if(confirm("Apagar TODAS as pendências das contas de \""+(co?.name||"")+"\"? Essa ação não pode ser desfeita.")){const ids=accs.map(a=>a.id);data.tasks=data.tasks.filter(t=>!ids.includes(t.accountId));save();render()}});
+ $("editName")?.addEventListener("click",()=>editAccount("name"));
+ $("editBank")?.addEventListener("click",()=>editAccount("bank"));
+}
+function editAccount(field){let a=data.accounts.find(x=>x.id===selected), el=field==="name"?$("editName"):$("editBank"), old=a[field]||"";let inp=document.createElement("input");inp.className="input";inp.value=old;el.replaceWith(inp);inp.focus();inp.select();let done=()=>{a[field]=inp.value.trim();save();render()};inp.onblur=done;inp.onkeydown=e=>{if(e.key==="Enter")done();if(e.key==="Escape")render()}}
+function addAccount(){let n=$("an").value.trim();if(!n)return;data.accounts.push({id:uid(),companyId:company,name:n,bank:$("ab").value.trim()});save();render()}
+render();
+})();
+</script>
+</body>
+</html>
