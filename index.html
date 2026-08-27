@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Controle de contas</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 @import url('data:text/css,'); /* intentionally empty: this file has no network dependency */
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1C2733;background:#EEF1F1}button,input,select,textarea{font:inherit}button{cursor:pointer}
@@ -25,7 +27,23 @@
 <div id="root"></div>
 <script>
 (function(){
-const KEY="gestor-contas:data";
+/* ======== CONFIGURAÇÃO DO FIREBASE ========
+   Substitua os valores abaixo pelos do SEU projeto Firebase
+   (Console do Firebase > Configurações do projeto > Seus apps > SDK setup and configuration).
+*/
+const firebaseConfig = {
+  apiKey: "AIzaSyBh_8-sGajSddRp0QXaAKGoASigBFNBEZM",
+  authDomain: "site-803f0.firebaseapp.com",
+  projectId: "site-803f0",
+  storageBucket: "site-803f0.firebasestorage.app",
+  messagingSenderId: "1067717918092",
+  appId: "1:1067717918092:web:b56c4c55658bb804eceaa9"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const docRef = db.collection("controle-contas").doc("dados");
+/* ============================================ */
+
 const COLORS=[["#E1F5EE","#085041"],["#E6F1FB","#0C447C"],["#FAECE7","#712B13"],["#FBEAF0","#72243E"],["#FAEEDA","#633806"]];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
@@ -35,17 +53,42 @@ const brl=v=>(Number(v)||0).toLocaleString("pt-BR",{style:"currency",currency:"B
 const initials=n=>String(n||"").trim().split(/\s+/).slice(0,2).map(x=>x[0]?.toUpperCase()||"").join("");
 const KSTATUS=[["afazer","A fazer"],["fazendo","Fazendo"],["feito","Feito"]];
 const fresh=()=>({users:[],companies:[{id:uid(),name:"Fazenda"},{id:uid(),name:"Trielo"},{id:uid(),name:"APR"}],accounts:[],tasks:[],kanban:{receber:[],pagar:[]}});
-let data; try{data=JSON.parse(localStorage.getItem(KEY)||"null")||fresh()}catch(e){data=fresh()}
-if(!data.kanban) data.kanban={receber:[],pagar:[]};
-if(!Array.isArray(data.kanban.receber)) data.kanban.receber=[];
-if(!Array.isArray(data.kanban.pagar)) data.kanban.pagar=[];
-(data.tasks||[]).forEach(t=>{ if(t.responsavel && !t.responsaveis) t.responsaveis=[t.responsavel]; if(!t.responsaveis) t.responsaveis=[]; if(t.observacao===undefined) t.observacao=""; });
-let current=null, company=data.companies[0]?.id||null, selected=null;
+
+let data=null, connError=false;
+let current=null, company=null, selected=null;
 let tab=null, selectedDay=null;
 let kanbanSelected=null, kanbanFormOpen=null, draggedItem=null;
 
-function save(){localStorage.setItem(KEY,JSON.stringify(data))}
+function ensureDefaults(){
+ if(!data.users) data.users=[];
+ if(!data.companies||!data.companies.length) data.companies=[{id:uid(),name:"Fazenda"},{id:uid(),name:"Trielo"},{id:uid(),name:"APR"}];
+ if(!data.accounts) data.accounts=[];
+ if(!data.tasks) data.tasks=[];
+ if(!data.kanban) data.kanban={receber:[],pagar:[]};
+ if(!Array.isArray(data.kanban.receber)) data.kanban.receber=[];
+ if(!Array.isArray(data.kanban.pagar)) data.kanban.pagar=[];
+ data.tasks.forEach(t=>{ if(t.responsavel && !t.responsaveis) t.responsaveis=[t.responsavel]; if(!t.responsaveis) t.responsaveis=[]; if(t.observacao===undefined) t.observacao=""; });
+ if(!company||!data.companies.some(c=>c.id===company)) company=data.companies[0]?.id||null;
+}
+
+function save(){
+ docRef.set(data).catch(err=>{ console.error("Erro ao salvar no Firestore:",err); connError=true; render(); });
+}
+
+docRef.onSnapshot(snap=>{
+ if(snap.exists){ data=snap.data(); }
+ else { data=fresh(); docRef.set(data); }
+ connError=false;
+ ensureDefaults();
+ render();
+}, err=>{
+ console.error("Erro de conexão com o Firestore:",err);
+ connError=true;
+ render();
+});
 function render(){
+ if(connError){$("root").innerHTML='<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:Inter,system-ui,sans-serif;color:#B23A3A"><div><b>Não foi possível conectar ao banco de dados.</b><br><span style="color:#5B6A78;font-size:13px">Verifique sua internet ou a configuração do Firebase (firebaseConfig) no arquivo.</span></div></div>';return}
+ if(!data){$("root").innerHTML='<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;color:#5B6A78">Carregando…</div>';return}
  const scrollY=window.scrollY;
  const openPanel=document.querySelector(".panel");
  const panelScroll=openPanel?openPanel.scrollTop:0;
@@ -246,6 +289,7 @@ function editAccount(field){let a=data.accounts.find(x=>x.id===selected), el=fie
 function addAccount(){let n=$("an").value.trim();if(!n)return;data.accounts.push({id:uid(),companyId:company,name:n,bank:$("ab").value.trim()});save();render()}
 render();
 })();
+
 </script>
 </body>
 </html>
