@@ -229,7 +229,8 @@ const today=()=>new Date().toISOString().slice(0,10);
 const brl=v=>(Number(v)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const initials=n=>String(n||"").trim().split(/\s+/).slice(0,2).map(x=>x[0]?.toUpperCase()||"").join("");
 const KSTATUS=[["afazer","A fazer"],["fazendo","Fazendo"],["feito","Feito"]];
-const fresh=()=>({users:[],companies:[{id:uid(),name:"Fazenda"},{id:uid(),name:"Trielo"},{id:uid(),name:"APR"}],accounts:[],tasks:[],kanban:{receber:[],pagar:[]}});
+const fresh=()=>({users:[],companies:[{id:uid(),name:"Fazenda"},{id:uid(),name:"Trielo"},{id:uid(),name:"APR"}],accounts:[],tasks:[],kanban:{receber:[],pagar:[]},recurring:[]});
+const WEEKDAYS=[[0,"domingo"],[1,"segunda-feira"],[2,"terça-feira"],[3,"quarta-feira"],[4,"quinta-feira"],[5,"sexta-feira"],[6,"sábado"]];
 
 /* ---------- Valores em formato brasileiro (1.234,56) ---------- */
 function parseNum(v){
@@ -262,6 +263,7 @@ let data=null, connError=false;
 let current=null, company=null, selected=null;
 let tab=null, selectedDays=[];
 let kanbanSelected=null, kanbanFormOpen=null, draggedItem=null;
+let recurringFormOpen=null;
 function dayOf(t){return Number(String(t.day||"").slice(-2))}
 
 function ensureDefaults(){
@@ -272,6 +274,8 @@ function ensureDefaults(){
  if(!data.kanban) data.kanban={receber:[],pagar:[]};
  if(!Array.isArray(data.kanban.receber)) data.kanban.receber=[];
  if(!Array.isArray(data.kanban.pagar)) data.kanban.pagar=[];
+ if(!Array.isArray(data.recurring)) data.recurring=[];
+ data.recurring.forEach(r=>{ if(!Array.isArray(r.responsaveis)) r.responsaveis=[]; if(r.value===undefined) r.value=0; if(!r.scheduleMode) r.scheduleMode="monthday"; });
  data.companies.forEach(c=>{ if(!Array.isArray(c.offDays)) c.offDays=[]; if(!c.totalDays||c.totalDays<28||c.totalDays>31) c.totalDays=31; });
  data.accounts.forEach(a=>{ if(!Array.isArray(a.doneDays)) a.doneDays=[]; });
  data.tasks.forEach(t=>{ if(t.responsavel && !t.responsaveis) t.responsaveis=[t.responsavel]; if(!t.responsaveis) t.responsaveis=[]; if(t.observacao===undefined) t.observacao=""; });
@@ -282,11 +286,46 @@ function save(){
  docRef.set(data).catch(err=>{ console.error("Erro ao salvar no Firestore:",err); connError=true; render(); });
 }
 
+/* ---------- Baixas fixas: geração automática das pendências do dia ---------- */
+function generateRecurringTasks(){
+ if(!Array.isArray(data.recurring)||!data.recurring.length)return false;
+ const now=new Date();
+ const y=now.getFullYear(), m=now.getMonth();
+ const ym=y+"-"+String(m+1).padStart(2,"0");
+ const todayNum=now.getDate();
+ let changed=false;
+ data.recurring.forEach(r=>{
+  const acc=data.accounts.find(a=>a.id===r.accountId);
+  if(!acc)return;
+  const co=data.companies.find(c=>c.id===acc.companyId);
+  const totalDays=(co&&co.totalDays)?co.totalDays:31;
+  const off=(co&&Array.isArray(co.offDays))?co.offDays:[];
+  let occurrences=[];
+  if(r.scheduleMode==="weekday"){
+   for(let n=1;n<=totalDays;n++){ if(new Date(y,m,n).getDay()===r.weekday) occurrences.push(n); }
+  }else{
+   let n=Number(r.day)||1; if(n<1)n=1; if(n>totalDays)n=totalDays;
+   occurrences.push(n);
+  }
+  occurrences.forEach(orig=>{
+   let target=orig;
+   while(off.includes(target)&&target<totalDays){ target++; }
+   if(target>todayNum)return;
+   const key=r.id+"-"+ym+"-"+orig;
+   if(data.tasks.some(t=>t.recurringKey===key))return;
+   data.tasks.push({id:uid(),accountId:r.accountId,day:ym+"-"+String(target).padStart(2,"0"),description:r.description,value:r.value||0,type:r.type,status:"pendente",createdBy:r.createdBy||"Baixa fixa",responsaveis:(r.responsaveis||[]).slice(),observacao:"",recurringId:r.id,recurringKey:key});
+   changed=true;
+  });
+ });
+ return changed;
+}
+
 docRef.onSnapshot(snap=>{
  if(snap.exists){ data=snap.data(); }
  else { data=fresh(); docRef.set(data); }
  connError=false;
  ensureDefaults();
+ if(generateRecurringTasks()) save();
  render();
 }, err=>{
  console.error("Erro de conexão com o Firestore:",err);
@@ -312,11 +351,13 @@ function tabsHtml(){
  return data.companies.map(c=>`<button class="tab ${!tab&&c.id===company?"active":""}" data-company="${c.id}">${esc(c.name)}</button>`).join("")
  +`<button class="tab ${tab==='receber'?"active":""}" data-kanbantab="receber">Pendências A Receber</button>`
  +`<button class="tab ${tab==='pagar'?"active":""}" data-kanbantab="pagar">Pendências A Pagar</button>`
- +`<button class="tab ${tab==='minhas'?"active":""}" data-kanbantab="minhas">Minhas pendências</button>`;
+ +`<button class="tab ${tab==='minhas'?"active":""}" data-kanbantab="minhas">Minhas pendências</button>`
+ +`<button class="tab ${tab==='baixas'?"active":""}" data-kanbantab="baixas">Baixas fixas</button>`;
 }
 function doRender(){
  if(!current){renderLogin();return}
  if(tab==='minhas'){renderMine();return}
+ if(tab==='baixas'){renderRecurring();return}
  if(tab){renderKanbanBoard();return}
  const co=data.companies.find(x=>x.id===company)||data.companies[0]; company=co?.id;
  const accounts=data.accounts.filter(a=>a.companyId===company);
@@ -506,7 +547,7 @@ function saveNewKanban(kind,status){
 function bindKanban(kind){
  $("switch")?.addEventListener("click",()=>{current=null;tab=null;kanbanSelected=null;kanbanFormOpen=null;render()});
  document.querySelectorAll("[data-company]").forEach(b=>b.onclick=()=>{tab=null;company=b.dataset.company;selected=null;selectedDays=[];render()});
- document.querySelectorAll("[data-kanbantab]").forEach(b=>b.onclick=()=>{tab=b.dataset.kanbantab;kanbanSelected=null;kanbanFormOpen=null;render()});
+ document.querySelectorAll("[data-kanbantab]").forEach(b=>b.onclick=()=>{tab=b.dataset.kanbantab;kanbanSelected=null;kanbanFormOpen=null;recurringFormOpen=null;render()});
  document.querySelectorAll("[data-kaddopen]").forEach(b=>b.onclick=()=>{kanbanFormOpen=b.dataset.kaddopen;render()});
  document.querySelectorAll("[data-kaddclose]").forEach(b=>b.onclick=()=>{kanbanFormOpen=null;render()});
  document.querySelectorAll("[data-kaddsave]").forEach(b=>b.onclick=()=>saveNewKanban(kind,b.dataset.kaddsave));
@@ -588,10 +629,89 @@ function mineRowKanban(i){
  const done=i.status==="feito";
  return `<div class="task" data-minekanban="${i.id}" data-minekind="${i.kind}"><span class="check ${done?"done":""}" style="display:grid;place-items:center;font-size:12px">${done?"✓":""}</span><div class="taskbody"><div class="desc ${done?"done":""}">${esc(i.description)}</div><div class="taskmeta">${i.kind==="receber"?"Pendências A Receber":"Pendências A Pagar"} · ${esc(lbl)}${i.observacao?" · 📝":""}</div></div><div class="taskval" style="color:${done?"#6B6A57":(i.kind==="receber"?"#2F5233":"#9E4530")}">${brl(i.value)}</div></div>`
 }
+
+/* ---------- Baixas fixas ---------- */
+function scheduleLabel(r){
+ return r.scheduleMode==="weekday"?("Toda "+WEEKDAYS[r.weekday][1]):("Todo dia "+r.day);
+}
+function renderRecurring(){
+ const rules=data.recurring||[];
+ $("root").innerHTML=`<div class="app">
+${headerHtml()}
+<nav class="tabs">${tabsHtml()}</nav>
+<main class="main">
+<div class="head"><div><div class="eyebrow">Módulo</div><h2 class="title">Baixas fixas</h2><div class="hint">Pendências recorrentes lançadas automaticamente na conta quando chega o dia. Se a data cair em um fim de semana/feriado marcado na empresa, a pendência é lançada no próximo dia útil.</div></div></div>
+<div class="mybox" style="margin-bottom:16px">${rules.length?rules.map(recurringRow).join(""):'<div class="meta" style="padding:14px;text-align:center">Nenhuma baixa fixa cadastrada.</div>'}</div>
+<div id="recurringForm">${recurringFormOpen?recurringFormHtml(recurringFormOpen==="new"?null:recurringFormOpen):`<button class="kaddbtn" id="addRecurring">＋ Nova baixa fixa</button>`}</div>
+</main></div>`;
+ bindRecurring();
+}
+function recurringRow(r){
+ const a=data.accounts.find(x=>x.id===r.accountId);
+ const co=a?data.companies.find(c=>c.id===a.companyId):null;
+ const resp=(r.responsaveis||[]).map(id=>data.users.find(u=>u.id===id)).filter(Boolean);
+ return `<div class="task" data-recedit="${r.id}"><span class="check" style="visibility:hidden"></span><div class="taskbody"><div class="desc">${esc(r.description)}</div><div class="taskmeta">${esc(co?.name||"—")} · ${esc(a?.name||"conta removida")} · <span style="color:${r.type==="A receber"?"#2F5233":"#9E4530"}">${esc(r.type)}</span> · ${scheduleLabel(r)}${resp.length?" · responsáveis: "+resp.map(u=>esc(u.name)).join(", "):""}</div></div><div class="taskval">${r.value?brl(r.value):""}</div><button class="trash" data-recdelete="${r.id}" title="Excluir">🗑</button></div>`
+}
+function recurringFormHtml(ruleId){
+ let r=ruleId?data.recurring.find(x=>x.id===ruleId):null;
+ let mode=r?r.scheduleMode:"monthday";
+ let accOptions=data.companies.map(c=>{
+  let accs=data.accounts.filter(a=>a.companyId===c.id);
+  if(!accs.length)return "";
+  return `<optgroup label="${esc(c.name)}">${accs.map(a=>`<option value="${a.id}" ${r&&r.accountId===a.id?"selected":""}>${esc(a.name)}</option>`).join("")}</optgroup>`;
+ }).join("");
+ return `<div class="taskform"><b style="font-size:12px;color:#203A24">${r?"Editar baixa fixa":"Nova baixa fixa"}</b>
+<input class="input" id="rdesc" placeholder="Nome da baixa" value="${r?esc(r.description):""}">
+<div class="row"><select class="input" id="racc">${accOptions||'<option value="">Nenhuma conta cadastrada</option>'}</select><select class="input" id="rtype"><option ${(r&&r.type==="A pagar")||!r?"selected":""}>A pagar</option><option ${r&&r.type==="A receber"?"selected":""}>A receber</option></select></div>
+<div class="row">
+<select class="input" id="rmode" onchange="document.getElementById('rday').style.display=this.value==='monthday'?'':'none';document.getElementById('rweekday').style.display=this.value==='weekday'?'':'none';">
+<option value="monthday" ${mode==="monthday"?"selected":""}>Dia fixo do mês</option>
+<option value="weekday" ${mode==="weekday"?"selected":""}>Dia da semana</option>
+</select>
+<input class="input value" type="number" min="1" max="31" id="rday" placeholder="Dia (1-31)" value="${r&&r.scheduleMode!=="weekday"?r.day:""}" style="${mode==="weekday"?"display:none":""}">
+<select class="input" id="rweekday" style="${mode==="monthday"?"display:none":""}">${WEEKDAYS.map(([n,l])=>`<option value="${n}" ${r&&r.scheduleMode==="weekday"&&r.weekday===n?"selected":""}>Toda ${l}</option>`).join("")}</select>
+</div>
+<input class="input value" type="text" inputmode="decimal" placeholder="Valor (R$) — opcional" id="rval" value="${r&&r.value?fmtNum(r.value):""}">
+<div class="hint">Responsáveis</div>
+<div class="respbox" id="rrespbox">${respChecksHtml(r?r.responsaveis:[])}</div>
+<div class="actions">${r?'<button class="icon danger" id="rdel" title="Excluir">🗑</button>':""}<button class="icon" id="rcancel">×</button><button class="icon ok" id="rsave">✓</button></div>
+</div>`
+}
+function saveRecurring(){
+ const desc=$("rdesc").value.trim();if(!desc)return;
+ const accountId=$("racc").value;if(!accountId)return;
+ const type=$("rtype").value;
+ const mode=$("rmode").value;
+ const day=mode==="monthday"?Math.min(31,Math.max(1,Number($("rday").value)||1)):null;
+ const weekday=mode==="weekday"?Number($("rweekday").value):null;
+ const value=parseNum($("rval").value);
+ const responsaveis=Array.from(document.querySelectorAll("#rrespbox input:checked")).map(c=>c.value);
+ if(recurringFormOpen&&recurringFormOpen!=="new"){
+  let r=data.recurring.find(x=>x.id===recurringFormOpen);
+  if(r){r.description=desc;r.accountId=accountId;r.type=type;r.scheduleMode=mode;r.day=day;r.weekday=weekday;r.value=value;r.responsaveis=responsaveis;}
+ }else{
+  data.recurring.push({id:uid(),description:desc,accountId,type,scheduleMode:mode,day,weekday,value,responsaveis,createdBy:current.name});
+ }
+ recurringFormOpen=null;
+ save();render();
+}
+function bindRecurring(){
+ $("switch")?.addEventListener("click",()=>{current=null;tab=null;recurringFormOpen=null;render()});
+ document.querySelectorAll("[data-company]").forEach(b=>b.onclick=()=>{tab=null;company=b.dataset.company;selected=null;selectedDays=[];render()});
+ document.querySelectorAll("[data-kanbantab]").forEach(b=>b.onclick=()=>{tab=b.dataset.kanbantab;kanbanSelected=null;kanbanFormOpen=null;recurringFormOpen=null;render()});
+ $("addRecurring")?.addEventListener("click",()=>{recurringFormOpen="new";render()});
+ document.querySelectorAll("[data-recedit]").forEach(el=>el.addEventListener("click",e=>{if(e.target.closest("button"))return;recurringFormOpen=el.dataset.recedit;render()}));
+ document.querySelectorAll("[data-recdelete]").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();if(confirm("Excluir esta baixa fixa? Pendências já lançadas não serão apagadas.")){data.recurring=data.recurring.filter(x=>x.id!==b.dataset.recdelete);save();render()}}));
+ bindMoney($("rval"));
+ $("rcancel")?.addEventListener("click",()=>{recurringFormOpen=null;render()});
+ $("rsave")?.addEventListener("click",saveRecurring);
+ $("rdel")?.addEventListener("click",()=>{if(recurringFormOpen&&recurringFormOpen!=="new"&&confirm("Excluir esta baixa fixa?")){data.recurring=data.recurring.filter(x=>x.id!==recurringFormOpen);recurringFormOpen=null;save();render()}});
+}
+
 function bindMine(){
  $("switch")?.addEventListener("click",()=>{current=null;tab=null;kanbanSelected=null;kanbanFormOpen=null;render()});
  document.querySelectorAll("[data-company]").forEach(b=>b.onclick=()=>{tab=null;company=b.dataset.company;selected=null;selectedDays=[];render()});
- document.querySelectorAll("[data-kanbantab]").forEach(b=>b.onclick=()=>{tab=b.dataset.kanbantab;kanbanSelected=null;kanbanFormOpen=null;render()});
+ document.querySelectorAll("[data-kanbantab]").forEach(b=>b.onclick=()=>{tab=b.dataset.kanbantab;kanbanSelected=null;kanbanFormOpen=null;recurringFormOpen=null;render()});
  document.querySelectorAll("[data-minetask]").forEach(el=>el.onclick=()=>{
   const t=data.tasks.find(x=>x.id===el.dataset.minetask);if(!t)return;
   const a=data.accounts.find(x=>x.id===t.accountId);if(!a)return;
@@ -646,7 +766,7 @@ function refreshDays(days){
 function bind(){
  $("switch")?.addEventListener("click",()=>{current=null;tab=null;selected=null;selectedDays=[];render()});
  document.querySelectorAll("[data-company]").forEach(b=>b.onclick=()=>{tab=null;company=b.dataset.company;selected=null;selectedDays=[];render()});
- document.querySelectorAll("[data-kanbantab]").forEach(b=>b.onclick=()=>{tab=b.dataset.kanbantab;kanbanSelected=null;kanbanFormOpen=null;render()});
+ document.querySelectorAll("[data-kanbantab]").forEach(b=>b.onclick=()=>{tab=b.dataset.kanbantab;kanbanSelected=null;kanbanFormOpen=null;recurringFormOpen=null;render()});
  document.querySelectorAll("[data-account]").forEach(b=>b.onclick=()=>{selected=b.dataset.account;selectedDays=[];render()});
  $("addAccount")?.addEventListener("click",()=>{ $("newAccount").innerHTML=`<div class="formcard"><input class="input" id="an" placeholder="Nome da conta" autofocus><input class="input" id="ab" placeholder="Banco (opcional)"><div class="actions"><button class="icon" id="ac">×</button><button class="icon ok" id="as">✓</button></div></div>`;$("ac").onclick=render;$("as").onclick=addAccount;$("ab").onkeydown=e=>{if(e.key==="Enter")addAccount()};});
  $("overlay")?.addEventListener("click",e=>{if(e.target.id==="overlay"){selected=null;selectedDays=[];render()}});
