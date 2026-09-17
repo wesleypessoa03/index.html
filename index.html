@@ -173,6 +173,10 @@ button{cursor:pointer}
 .no{font-size:12px;color:var(--ink-soft);background:transparent;border:1px solid var(--line);border-radius:6px;padding:6px 10px}
 
 .respbox{border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px;background:var(--surface);max-height:132px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.daypick{border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px;background:var(--surface);max-height:112px;overflow:auto;display:flex;flex-wrap:wrap;gap:5px}
+.daypick label{display:flex;align-items:center;gap:4px;font-size:12px;background:var(--surface-2);padding:3px 8px;border-radius:6px;white-space:nowrap}
+.groupname{font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;margin:6px 0 2px;font-family:'IBM Plex Mono',monospace}
+.groupname:first-child{margin-top:0}
 .respitem{display:flex;align-items:center;gap:7px;font-size:13.5px}
 .obs textarea{width:100%;min-height:72px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px;font:inherit;resize:vertical;background:var(--surface)}
 
@@ -275,7 +279,14 @@ function ensureDefaults(){
  if(!Array.isArray(data.kanban.receber)) data.kanban.receber=[];
  if(!Array.isArray(data.kanban.pagar)) data.kanban.pagar=[];
  if(!Array.isArray(data.recurring)) data.recurring=[];
- data.recurring.forEach(r=>{ if(!Array.isArray(r.responsaveis)) r.responsaveis=[]; if(r.value===undefined) r.value=0; if(!r.scheduleMode) r.scheduleMode="monthday"; });
+ data.recurring.forEach(r=>{
+  if(!Array.isArray(r.responsaveis)) r.responsaveis=[];
+  if(r.value===undefined) r.value=0;
+  if(!r.scheduleMode) r.scheduleMode="monthday";
+  if(!Array.isArray(r.accountIds)) r.accountIds=r.accountId?[r.accountId]:[];
+  if(!Array.isArray(r.days)) r.days=r.day?[r.day]:[];
+  if(!Array.isArray(r.weekdays)) r.weekdays=(r.weekday!==undefined&&r.weekday!==null)?[r.weekday]:[];
+ });
  data.companies.forEach(c=>{ if(!Array.isArray(c.offDays)) c.offDays=[]; if(!c.totalDays||c.totalDays<28||c.totalDays>31) c.totalDays=31; });
  data.accounts.forEach(a=>{ if(!Array.isArray(a.doneDays)) a.doneDays=[]; });
  data.tasks.forEach(t=>{ if(t.responsavel && !t.responsaveis) t.responsaveis=[t.responsavel]; if(!t.responsaveis) t.responsaveis=[]; if(t.observacao===undefined) t.observacao=""; });
@@ -295,26 +306,27 @@ function generateRecurringTasks(){
  const todayNum=now.getDate();
  let changed=false;
  data.recurring.forEach(r=>{
-  const acc=data.accounts.find(a=>a.id===r.accountId);
-  if(!acc)return;
-  const co=data.companies.find(c=>c.id===acc.companyId);
-  const totalDays=(co&&co.totalDays)?co.totalDays:31;
-  const off=(co&&Array.isArray(co.offDays))?co.offDays:[];
-  let occurrences=[];
-  if(r.scheduleMode==="weekday"){
-   for(let n=1;n<=totalDays;n++){ if(new Date(y,m,n).getDay()===r.weekday) occurrences.push(n); }
-  }else{
-   let n=Number(r.day)||1; if(n<1)n=1; if(n>totalDays)n=totalDays;
-   occurrences.push(n);
-  }
-  occurrences.forEach(orig=>{
-   let target=orig;
-   while(off.includes(target)&&target<totalDays){ target++; }
-   if(target>todayNum)return;
-   const key=r.id+"-"+ym+"-"+orig;
-   if(data.tasks.some(t=>t.recurringKey===key))return;
-   data.tasks.push({id:uid(),accountId:r.accountId,day:ym+"-"+String(target).padStart(2,"0"),description:r.description,value:r.value||0,type:r.type,status:"pendente",createdBy:r.createdBy||"Baixa fixa",responsaveis:(r.responsaveis||[]).slice(),observacao:"",recurringId:r.id,recurringKey:key});
-   changed=true;
+  (r.accountIds||[]).forEach(accountId=>{
+   const acc=data.accounts.find(a=>a.id===accountId);
+   if(!acc)return;
+   const co=data.companies.find(c=>c.id===acc.companyId);
+   const totalDays=(co&&co.totalDays)?co.totalDays:31;
+   const off=(co&&Array.isArray(co.offDays))?co.offDays:[];
+   let occurrences=[];
+   if(r.scheduleMode==="weekday"){
+    for(let n=1;n<=totalDays;n++){ if((r.weekdays||[]).includes(new Date(y,m,n).getDay())) occurrences.push(n); }
+   }else{
+    (r.days||[]).forEach(d=>{ let n=Number(d)||1; if(n<1)n=1; if(n>totalDays)n=totalDays; occurrences.push(n); });
+   }
+   occurrences.forEach(orig=>{
+    let target=orig;
+    while(off.includes(target)&&target<totalDays){ target++; }
+    if(target>todayNum)return;
+    const key=r.id+"-"+accountId+"-"+ym+"-"+orig;
+    if(data.tasks.some(t=>t.recurringKey===key))return;
+    data.tasks.push({id:uid(),accountId,day:ym+"-"+String(target).padStart(2,"0"),description:r.description,value:r.value||0,type:r.type,status:"pendente",createdBy:r.createdBy||"Baixa fixa",responsaveis:(r.responsaveis||[]).slice(),observacao:"",recurringId:r.id,recurringKey:key});
+    changed=true;
+   });
   });
  });
  return changed;
@@ -632,7 +644,12 @@ function mineRowKanban(i){
 
 /* ---------- Baixas fixas ---------- */
 function scheduleLabel(r){
- return r.scheduleMode==="weekday"?("Toda "+WEEKDAYS[r.weekday][1]):("Todo dia "+r.day);
+ if(r.scheduleMode==="weekday"){
+  const names=(r.weekdays||[]).slice().sort((a,b)=>a-b).map(n=>{const w=WEEKDAYS.find(x=>x[0]===n);return w?w[1]:n});
+  return names.length?"Toda "+names.join(", "):"—";
+ }
+ const ds=(r.days||[]).slice().sort((a,b)=>a-b);
+ return ds.length?"Dia"+(ds.length>1?"s":"")+" "+ds.join(", ")+" do mês":"—";
 }
 function renderRecurring(){
  const rules=data.recurring||[];
@@ -640,37 +657,49 @@ function renderRecurring(){
 ${headerHtml()}
 <nav class="tabs">${tabsHtml()}</nav>
 <main class="main">
-<div class="head"><div><div class="eyebrow">Módulo</div><h2 class="title">Baixas fixas</h2><div class="hint">Pendências recorrentes lançadas automaticamente na conta quando chega o dia. Se a data cair em um fim de semana/feriado marcado na empresa, a pendência é lançada no próximo dia útil.</div></div></div>
+<div class="head"><div><div class="eyebrow">Módulo</div><h2 class="title">Baixas fixas</h2><div class="hint">Pendências recorrentes lançadas automaticamente nas contas e dias marcados, quando chega o dia. Se a data cair em um fim de semana/feriado da empresa, a pendência é lançada no próximo dia útil.</div></div></div>
 <div class="mybox" style="margin-bottom:16px">${rules.length?rules.map(recurringRow).join(""):'<div class="meta" style="padding:14px;text-align:center">Nenhuma baixa fixa cadastrada.</div>'}</div>
 <div id="recurringForm">${recurringFormOpen?recurringFormHtml(recurringFormOpen==="new"?null:recurringFormOpen):`<button class="kaddbtn" id="addRecurring">＋ Nova baixa fixa</button>`}</div>
 </main></div>`;
  bindRecurring();
 }
 function recurringRow(r){
- const a=data.accounts.find(x=>x.id===r.accountId);
- const co=a?data.companies.find(c=>c.id===a.companyId):null;
+ const accs=(r.accountIds||[]).map(id=>data.accounts.find(a=>a.id===id)).filter(Boolean);
+ const accLabel=accs.length?accs.map(a=>esc(a.name)).join(", "):"conta removida";
  const resp=(r.responsaveis||[]).map(id=>data.users.find(u=>u.id===id)).filter(Boolean);
- return `<div class="task" data-recedit="${r.id}"><span class="check" style="visibility:hidden"></span><div class="taskbody"><div class="desc">${esc(r.description)}</div><div class="taskmeta">${esc(co?.name||"—")} · ${esc(a?.name||"conta removida")} · <span style="color:${r.type==="A receber"?"#2F5233":"#9E4530"}">${esc(r.type)}</span> · ${scheduleLabel(r)}${resp.length?" · responsáveis: "+resp.map(u=>esc(u.name)).join(", "):""}</div></div><div class="taskval">${r.value?brl(r.value):""}</div><button class="trash" data-recdelete="${r.id}" title="Excluir">🗑</button></div>`
+ return `<div class="task" data-recedit="${r.id}"><span class="check" style="visibility:hidden"></span><div class="taskbody"><div class="desc">${esc(r.description)}</div><div class="taskmeta">${accLabel} · <span style="color:${r.type==="A receber"?"#2F5233":"#9E4530"}">${esc(r.type)}</span> · ${scheduleLabel(r)}${resp.length?" · responsáveis: "+resp.map(u=>esc(u.name)).join(", "):""}</div></div><div class="taskval">${r.value?brl(r.value):""}</div><button class="trash" data-recdelete="${r.id}" title="Excluir">🗑</button></div>`
+}
+function accountChecksHtml(selectedIds){
+ selectedIds=selectedIds||[];
+ const groups=data.companies.map(c=>{
+  const accs=data.accounts.filter(a=>a.companyId===c.id);
+  if(!accs.length)return "";
+  return `<div class="groupname">${esc(c.name)}</div>`+accs.map(a=>`<label class="respitem"><input type="checkbox" value="${a.id}" ${selectedIds.includes(a.id)?"checked":""}> ${esc(a.name)}</label>`).join("");
+ }).join("");
+ return groups||'<span class="hint">Nenhuma conta cadastrada</span>';
+}
+function dayChecksHtml(selectedDays){
+ selectedDays=selectedDays||[];
+ return Array.from({length:31},(_,i)=>i+1).map(n=>`<label><input type="checkbox" value="${n}" ${selectedDays.includes(n)?"checked":""}>${n}</label>`).join("");
+}
+function weekdayChecksHtml(selectedWd){
+ selectedWd=selectedWd||[];
+ return WEEKDAYS.map(([n,l])=>`<label><input type="checkbox" value="${n}" ${selectedWd.includes(n)?"checked":""}> ${l}</label>`).join("");
 }
 function recurringFormHtml(ruleId){
  let r=ruleId?data.recurring.find(x=>x.id===ruleId):null;
  let mode=r?r.scheduleMode:"monthday";
- let accOptions=data.companies.map(c=>{
-  let accs=data.accounts.filter(a=>a.companyId===c.id);
-  if(!accs.length)return "";
-  return `<optgroup label="${esc(c.name)}">${accs.map(a=>`<option value="${a.id}" ${r&&r.accountId===a.id?"selected":""}>${esc(a.name)}</option>`).join("")}</optgroup>`;
- }).join("");
  return `<div class="taskform"><b style="font-size:12px;color:#203A24">${r?"Editar baixa fixa":"Nova baixa fixa"}</b>
 <input class="input" id="rdesc" placeholder="Nome da baixa" value="${r?esc(r.description):""}">
-<div class="row"><select class="input" id="racc">${accOptions||'<option value="">Nenhuma conta cadastrada</option>'}</select><select class="input" id="rtype"><option ${(r&&r.type==="A pagar")||!r?"selected":""}>A pagar</option><option ${r&&r.type==="A receber"?"selected":""}>A receber</option></select></div>
-<div class="row">
-<select class="input" id="rmode" onchange="document.getElementById('rday').style.display=this.value==='monthday'?'':'none';document.getElementById('rweekday').style.display=this.value==='weekday'?'':'none';">
-<option value="monthday" ${mode==="monthday"?"selected":""}>Dia fixo do mês</option>
-<option value="weekday" ${mode==="weekday"?"selected":""}>Dia da semana</option>
+<select class="input" id="rtype"><option ${(r&&r.type==="A pagar")||!r?"selected":""}>A pagar</option><option ${r&&r.type==="A receber"?"selected":""}>A receber</option></select>
+<div class="hint">Contas (marque uma ou mais)</div>
+<div class="respbox" id="raccbox">${accountChecksHtml(r?r.accountIds:[])}</div>
+<select class="input" id="rmode" onchange="document.getElementById('rdaywrap').style.display=this.value==='monthday'?'':'none';document.getElementById('rwdwrap').style.display=this.value==='weekday'?'':'none';">
+<option value="monthday" ${mode==="monthday"?"selected":""}>Dia(s) fixo(s) do mês</option>
+<option value="weekday" ${mode==="weekday"?"selected":""}>Dia(s) da semana</option>
 </select>
-<input class="input value" type="number" min="1" max="31" id="rday" placeholder="Dia (1-31)" value="${r&&r.scheduleMode!=="weekday"?r.day:""}" style="${mode==="weekday"?"display:none":""}">
-<select class="input" id="rweekday" style="${mode==="monthday"?"display:none":""}">${WEEKDAYS.map(([n,l])=>`<option value="${n}" ${r&&r.scheduleMode==="weekday"&&r.weekday===n?"selected":""}>Toda ${l}</option>`).join("")}</select>
-</div>
+<div id="rdaywrap" style="${mode==="weekday"?"display:none":""}"><div class="hint">Dias do mês (marque um ou mais)</div><div class="daypick" id="rdaybox">${dayChecksHtml(r?r.days:[])}</div></div>
+<div id="rwdwrap" style="${mode==="monthday"?"display:none":""}"><div class="hint">Dias da semana (marque um ou mais)</div><div class="daypick" id="rwdbox">${weekdayChecksHtml(r?r.weekdays:[])}</div></div>
 <input class="input value" type="text" inputmode="decimal" placeholder="Valor (R$) — opcional" id="rval" value="${r&&r.value?fmtNum(r.value):""}">
 <div class="hint">Responsáveis</div>
 <div class="respbox" id="rrespbox">${respChecksHtml(r?r.responsaveis:[])}</div>
@@ -679,18 +708,21 @@ function recurringFormHtml(ruleId){
 }
 function saveRecurring(){
  const desc=$("rdesc").value.trim();if(!desc)return;
- const accountId=$("racc").value;if(!accountId)return;
+ const accountIds=Array.from(document.querySelectorAll("#raccbox input:checked")).map(c=>c.value);
+ if(!accountIds.length)return;
  const type=$("rtype").value;
  const mode=$("rmode").value;
- const day=mode==="monthday"?Math.min(31,Math.max(1,Number($("rday").value)||1)):null;
- const weekday=mode==="weekday"?Number($("rweekday").value):null;
+ const days=mode==="monthday"?Array.from(document.querySelectorAll("#rdaybox input:checked")).map(c=>Number(c.value)):[];
+ const weekdays=mode==="weekday"?Array.from(document.querySelectorAll("#rwdbox input:checked")).map(c=>Number(c.value)):[];
+ if(mode==="monthday"&&!days.length)return;
+ if(mode==="weekday"&&!weekdays.length)return;
  const value=parseNum($("rval").value);
  const responsaveis=Array.from(document.querySelectorAll("#rrespbox input:checked")).map(c=>c.value);
  if(recurringFormOpen&&recurringFormOpen!=="new"){
   let r=data.recurring.find(x=>x.id===recurringFormOpen);
-  if(r){r.description=desc;r.accountId=accountId;r.type=type;r.scheduleMode=mode;r.day=day;r.weekday=weekday;r.value=value;r.responsaveis=responsaveis;}
+  if(r){r.description=desc;r.accountIds=accountIds;r.type=type;r.scheduleMode=mode;r.days=days;r.weekdays=weekdays;r.value=value;r.responsaveis=responsaveis;}
  }else{
-  data.recurring.push({id:uid(),description:desc,accountId,type,scheduleMode:mode,day,weekday,value,responsaveis,createdBy:current.name});
+  data.recurring.push({id:uid(),description:desc,accountIds,type,scheduleMode:mode,days,weekdays,value,responsaveis,createdBy:current.name});
  }
  recurringFormOpen=null;
  save();render();
